@@ -1,0 +1,238 @@
+// EduManage - Student Management System
+// Prisma Schema for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  GRADUATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum FeeStatus {
+  PAID
+  PENDING
+  PARTIAL
+  OVERDUE
+}
+
+enum ExamType {
+  MID_TERM
+  FINAL_SEMESTER
+  UNIT_TEST
+  PRACTICAL
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String   // Hashed password
+  role      Role     @default(STUDENT)
+  name      String
+  phone     String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student   Student?
+  teacher   Teacher?
+
+  @@index([email])
+  @@index([role])
+}
+
+model Department {
+  id        String    @id @default(uuid())
+  code      String    @unique // e.g. CSE, ECE, MECH, MBA
+  name      String
+  courses   Course[]
+  teachers  Teacher[]
+  students  Student[]
+}
+
+model Course {
+  id           String      @id @default(uuid())
+  code         String      @unique // e.g. CS101, BTECH-CS
+  name         String
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  durationYrs  Int         @default(4)
+  students     Student[]
+  subjects     Subject[]
+  createdAt    DateTime    @default(now())
+
+  @@index([departmentId])
+}
+
+model Subject {
+  id          String         @id @default(uuid())
+  code        String         @unique // e.g. CS301
+  name        String
+  credits     Int            @default(3)
+  semester    Int            @default(1)
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId   String?
+  teacher     Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  attendances Attendance[]
+  marks       Marks[]
+
+  @@index([courseId])
+  @@index([teacherId])
+}
+
+model Student {
+  id             String          @id @default(uuid())
+  studentId      String          @unique // e.g. STU2026001
+  userId         String          @unique
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId   String
+  department     Department      @relation(fields: [departmentId], references: [id])
+  courseId       String
+  course         Course          @relation(fields: [courseId], references: [id])
+  year           Int             @default(1) // 1, 2, 3, 4
+  section        String          @default("A")
+  dateOfBirth    DateTime?
+  address        String?
+  guardianName   String?
+  guardianPhone  String?
+  bloodGroup     String?
+  status         StudentStatus   @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  attendances    Attendance[]
+  marks          Marks[]
+  fees           FeeRecord[]
+  academicRecord AcademicRecord?
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([departmentId])
+}
+
+model Teacher {
+  id           String      @id @default(uuid())
+  teacherId    String      @unique // e.g. TCH2026001
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  designation  String      // Professor, Associate Professor, Assistant Professor, Lecturer
+  specialization String?
+  joiningDate  DateTime    @default(now())
+  subjects     Subject[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([teacherId])
+  @@index([departmentId])
+}
+
+model Attendance {
+  id        String           @id @default(uuid())
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  date      DateTime         // Date of session
+  status    AttendanceStatus @default(PRESENT)
+  remarks   String?
+  markedById String?         // Teacher / Admin user ID
+  createdAt DateTime         @default(now())
+
+  @@unique([studentId, subjectId, date])
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([date])
+}
+
+model Examination {
+  id          String      @id @default(uuid())
+  code        String      @unique // e.g. EXAM-2026-MID1
+  name        String      // e.g. Mid-Term Examinations 2026
+  type        ExamType    @default(MID_TERM)
+  semester    Int         @default(1)
+  startDate   DateTime
+  endDate     DateTime
+  totalMarks  Float       @default(100)
+  passingMarks Float      @default(40)
+  marks       Marks[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Marks {
+  id            String      @id @default(uuid())
+  studentId     String
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examinationId String
+  examination   Examination @relation(fields: [examinationId], references: [id], onDelete: Cascade)
+  subjectId     String
+  subject       Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  marksObtained Float
+  grade         String      // A+, A, B, C, F
+  remarks       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([studentId, examinationId, subjectId])
+  @@index([studentId])
+  @@index([examinationId])
+  @@index([subjectId])
+}
+
+model FeeRecord {
+  id          String    @id @default(uuid())
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeType     String    // Tuition, Library, Lab, Examination, Hostel
+  amount      Float
+  paidAmount  Float     @default(0)
+  dueDate     DateTime
+  paidDate    DateTime?
+  status      FeeStatus @default(PENDING)
+  receiptNo   String?   @unique
+  paymentMode String?   // Online, Cash, Cheque, UPI
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model AcademicRecord {
+  id               String   @id @default(uuid())
+  studentId        String   @unique
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  currentSemester  Int      @default(1)
+  gpa              Float    @default(0.0)
+  cgpa             Float    @default(0.0)
+  creditsCompleted Int      @default(0)
+  totalCredits     Int      @default(160)
+  standing         String   @default("Good Standing") // Good Standing, Dean's List, Academic Probation
+  remarks          String?
+  updatedAt        DateTime @updatedAt
+}

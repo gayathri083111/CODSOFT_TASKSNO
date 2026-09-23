@@ -1,0 +1,6 @@
+{
+  "name": "EduManage",
+  "description": "Centralized education management platform for managing students, teachers, attendance, examinations, fees, and academic records.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
