@@ -1,0 +1,6 @@
+{
+  "name": "DineDesk – Restaurant Ordering Platform",
+  "description": "Delicious food. Delivered with ease. A modern full-stack restaurant ordering platform with rich menu, cart, order tracking, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
